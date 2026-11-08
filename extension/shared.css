@@ -1,0 +1,33 @@
+:root {
+  --ink: #1b2430; --muted: #5d6b7a; --line: #dbe1e8; --panel: #ffffff; --bg: #f3f5f8;
+  --accent: #1f6feb; --accent-ink: #ffffff; --accent-soft: #e6effd; --danger: #c9252d; --radius: 8px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font: 14px/1.45 "Segoe UI", system-ui, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius); padding: 7px 12px; font-weight: 600; }
+button:hover:not(:disabled) { background: #eef1f5; }
+button:disabled { opacity: .55; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.primary:hover:not(:disabled) { background: #195fcc; }
+button.danger { color: var(--danger); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input[type=text], textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: #fff; }
+textarea { resize: vertical; min-height: 96px; }
+label.field { display: block; font-weight: 600; margin-bottom: 14px; }
+label.field > input, label.field > textarea { display: block; margin-top: 5px; font-weight: 400; }
+label.check { display: flex; gap: 8px; align-items: flex-start; }
+.muted { color: var(--muted); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; }
+.brand img { width: 24px; height: 24px; }
+
+/* Small "?" help marks. The text appears on hover or keyboard focus. */
+.tip { position: relative; display: inline-flex; flex: none; align-items: center; justify-content: center; width: 17px; height: 17px; margin-left: 6px; border: 1px solid #b8c1cc; border-radius: 50%; color: var(--muted); background: #fff; font-size: 11px; font-weight: 700; line-height: 1; cursor: help; vertical-align: middle; }
+.tip:hover, .tip:focus-visible { color: var(--accent); border-color: var(--accent); }
+.tip::after { content: attr(data-tip); display: none; position: absolute; z-index: 50; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 230px; padding: 7px 9px; border-radius: 6px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; white-space: normal; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.tip:hover::after, .tip:focus-visible::after { display: block; }
+.tip.side::after { top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); max-width: 205px; }
+.tip.end::after { left: auto; right: -6px; transform: none; }
+.tip.start::after { left: -6px; transform: none; }

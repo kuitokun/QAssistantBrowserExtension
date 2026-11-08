@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Test document</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .head-actions { display: flex; align-items: center; gap: 8px; }
+  main { max-width: 880px; margin: 0 auto; padding: 24px 20px 60px; }
+  #docTitle { font-size: 24px; font-weight: 700; padding: 8px 10px; }
+  .options { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 12px 2px 24px; color: var(--muted); }
+  .opt { display: inline-flex; align-items: center; gap: 6px; }
+  .opt select { font: inherit; font-size: 13px; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 4px; background: #fff; }
+  .step { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; padding: 16px; margin-bottom: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .thumb { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #fff; max-height: 300px; }
+  .thumb img { display: block; width: 100%; }
+  .step-num { font-size: 12.5px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .step .title { font-weight: 600; margin-bottom: 8px; }
+  .step textarea { min-height: 84px; }
+  .source { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; margin: 6px 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .row button { padding: 4px 10px; font-size: 13px; }
+  .empty { text-align: center; padding: 56px 20px; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+  #message { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 8px; }
+  #message:empty { display: none; }
+  @media (max-width: 680px) { .step { grid-template-columns: 1fr; } header { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><img src="icons/icon48.png" alt="">QAssistant</div>
+    <div class="head-actions">
+      <button id="newDoc" class="danger">New document</button>
+      <span class="tip end" tabindex="0" data-tip="Removes every step so you can start again. Download the current document first if you need it.">?</span>
+      <button id="download" class="primary">Download .docx</button>
+    </div>
+  </header>
+  <main>
+    <input type="text" id="docTitle" aria-label="Document title" autocomplete="off">
+    <div class="options">
+      <span class="opt"><label class="check"><input type="checkbox" id="includeSource"> Show page address and time</label><span class="tip" tabindex="0" data-tip="Adds the page address and capture time under each step title in Word.">?</span></span>
+      <span class="opt"><label class="check"><input type="checkbox" id="splitLong"> Split long screenshots</label>
+        <select id="splitMode" aria-label="How to split long screenshots">
+          <option value="page">to fit the Word page</option>
+          <option value="screen">by screen</option>
+        </select><span class="tip" tabindex="0" data-tip="Fit the Word page makes fewer, taller parts. By screen makes each part one screen, like screenshots taken while scrolling, and the last part matches the bottom of the page.">?</span></span>
+      <span class="opt"><label class="check"><input type="checkbox" id="repeatTaskbar"> Browser bar and taskbar on every part</label><span class="tip" tabindex="0" data-tip="When a long screenshot is split, each part starts with the browser bar and ends with the taskbar, date and time. Works on full-page captures taken with Taskbar on every capture ticked.">?</span></span>
+    </div>
+    <div id="steps"></div>
+  </main>
+  <div id="message" role="status"></div>
+  <script type="module" src="document.js"></script>
+</body>
+</html>

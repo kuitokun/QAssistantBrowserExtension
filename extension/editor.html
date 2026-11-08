@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edit screenshot</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand"><img src="icons/icon48.png" alt=""><span id="stepLabel">Step</span></div>
+    <div class="group" id="tools" role="toolbar" aria-label="Annotation tools">
+      <button data-tool="select" title="Select and move (V)">Select</button>
+      <button data-tool="highlight" title="Highlight an area (H)">Highlight</button>
+      <button data-tool="box" title="Draw a box (B)">Box</button>
+      <button data-tool="arrow" title="Draw an arrow (A)">Arrow</button>
+      <button data-tool="text" title="Add a note on the image (T)">Note</button>
+      <button data-tool="redact" title="Black out private information (R)">Hide</button>
+      <span class="tip" tabindex="0" data-tip="Draw on the screenshot. Hide blacks out private details, and becomes permanent when you click Done.">?</span>
+    </div>
+    <div class="group" id="colors" aria-label="Colour"></div>
+    <div class="group" id="sizes" aria-label="Note size" hidden>
+      <button data-size="s" title="Small note">S</button>
+      <button data-size="m" title="Medium note">M</button>
+      <button data-size="l" title="Large note">L</button>
+    </div>
+    <div class="group">
+      <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+      <button id="redo" title="Redo (Ctrl+Y)">Redo</button>
+      <button id="remove" title="Delete the selected item (Delete)" disabled>Delete item</button>
+    </div>
+    <div class="group zoom">
+      <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+      <span id="zoomLabel">100%</span>
+      <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+    </div>
+  </header>
+  <main class="workspace">
+    <div class="stage" id="stage">
+      <div class="surface" id="surface">
+        <canvas id="canvas"></canvas>
+        <textarea id="textInput" hidden aria-label="Note text"></textarea>
+      </div>
+    </div>
+    <aside class="side">
+      <label class="field">Title <span class="tip start" tabindex="0" data-tip="Becomes the step heading in Word. Leave it empty to use Step 1, Step 2 and so on.">?</span>
+        <input type="text" id="title" autocomplete="off" placeholder="e.g. Login with a valid user">
+      </label>
+      <label class="field">Notes <span class="tip start" tabindex="0" data-tip="Appears under the title in Word, such as the expected and actual result.">?</span>
+        <textarea id="notes" rows="7" placeholder="Expected result, actual result, anything else that belongs under this screenshot"></textarea>
+      </label>
+      <p id="warning" class="warning" hidden></p>
+      <p class="muted source" id="source"></p>
+      <div class="actions">
+        <button id="done" class="primary">Done, back to page</button>
+        <button id="openDoc">Open document</button>
+        <button id="discard" class="danger">Delete this screenshot</button>
+      </div>
+      <p class="muted saved" id="saved" role="status">Saved</p>
+    </aside>
+  </main>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>

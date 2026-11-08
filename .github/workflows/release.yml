@@ -1,0 +1,28 @@
+# Checks the extension and adds its zip to a GitHub release.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-security.js
+      - name: Create the zip
+        run: |
+          version=$(node -p "require('./extension/manifest.json').version")
+          (cd extension && zip -qr "../QAssistant-Extension-$version.zip" .)
+          sha256sum "QAssistant-Extension-$version.zip" > "QAssistant-Extension-$version.zip.sha256"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            QAssistant-Extension-*.zip
+            QAssistant-Extension-*.zip.sha256

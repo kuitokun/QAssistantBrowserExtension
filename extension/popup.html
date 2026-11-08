@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QAssistant</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { width: 310px; padding: 14px; background: #fff; }
+  .doc { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); }
+  .doc strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px; margin-bottom: 8px; }
+  .row button { width: 100%; }
+  .row button small { font-weight: 400; opacity: .75; margin-left: 4px; }
+  .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .line label { display: flex; align-items: center; gap: 7px; }
+  select { font: inherit; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 4px; background: #fff; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
+  .pair button { padding: 7px 4px; white-space: nowrap; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0; }
+  .keys { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+  .link { border: 0; padding: 0; background: none; color: var(--accent); text-decoration: underline; font-weight: 600; font-size: inherit; }
+  .sharing { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+  #status { margin: 10px 0 0; font-size: 13px; }
+  #status:empty { display: none; }
+  #status.error { color: var(--danger); }
+</style>
+</head>
+<body>
+  <div class="brand"><img src="icons/icon48.png" alt="">QAssistant</div>
+  <div class="doc"><strong id="docTitle"></strong><span id="docCount" class="muted"></span></div>
+
+  <div class="row">
+    <button id="full" class="primary">Capture full page<small data-key="capture-full"></small></button>
+    <span class="tip side" tabindex="0" data-tip="Scrolls the page by itself and saves it as one long image.">?</span>
+  </div>
+  <div class="row">
+    <button id="visible">Capture visible area<small data-key="capture-visible"></small></button>
+    <span class="tip side" tabindex="0" data-tip="Saves what you see on the page right now. With Taskbar on every capture ticked, it saves the whole screen.">?</span>
+  </div>
+  <div class="row">
+    <button id="screen">Capture entire screen<small data-key="capture-screen"></small></button>
+    <span class="tip side" tabindex="0" data-tip="Saves your whole screen, with the taskbar and clock. Asks to share your screen the first time.">?</span>
+  </div>
+
+  <div class="line">
+    <label><input type="checkbox" id="includeDesktop"> Taskbar on every capture</label>
+    <span class="tip side" tabindex="0" data-tip="Full-page and visible-area captures also show the browser bar and the taskbar with the date and time. Uses screen sharing.">?</span>
+  </div>
+  <div class="line">
+    <label>Delay before capture
+      <select id="delay" aria-label="Delay before capture">
+        <option value="0">None</option>
+        <option value="3">3 seconds</option>
+        <option value="5">5 seconds</option>
+        <option value="10">10 seconds</option>
+      </select>
+    </label>
+    <span class="tip side" tabindex="0" data-tip="Gives you time to open a menu or hover over something. The countdown shows on the extension icon.">?</span>
+  </div>
+
+  <hr>
+  <div class="pair">
+    <button id="open">Open document</button>
+    <button id="download">Go to download</button>
+    <span class="tip side" tabindex="0" data-tip="Review, reorder and edit your steps, then download them as a Word file.">?</span>
+  </div>
+
+  <p class="keys"><span id="openKey"></span> <button id="shortcuts" class="link">Change shortcuts</button></p>
+  <p id="sharing" class="sharing" hidden>Screen sharing is on, so the next capture is one click. <button id="stopShare" class="link">Stop</button></p>
+  <p id="status" role="status"></p>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

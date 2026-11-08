@@ -1,0 +1,25 @@
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; flex-direction: column; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.group { display: flex; align-items: center; gap: 4px; }
+.group[hidden] { display: none; }
+.group button { padding: 5px 10px; }
+#tools button[aria-pressed=true], #sizes button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); color: #114a9f; }
+.swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+.swatch[aria-pressed=true] { box-shadow: 0 0 0 2px var(--accent); }
+.swatch:hover:not(:disabled) { filter: brightness(.95); background: var(--swatch); }
+.zoom span { min-width: 46px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+.stage { overflow: auto; padding: 20px; background: #dfe4ea; }
+.surface { position: relative; width: max-content; margin: 0 auto; box-shadow: 0 1px 8px rgba(20, 30, 45, .25); background: #fff; }
+canvas { display: block; touch-action: none; }
+#textInput { position: absolute; min-width: 220px; min-height: 0; border: 2px solid var(--accent); border-radius: 6px; padding: 6px 8px; font-weight: 600; resize: both; z-index: 2; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
+.side { display: flex; flex-direction: column; padding: 16px; background: var(--panel); border-left: 1px solid var(--line); overflow: auto; }
+.source { font-size: 12.5px; overflow-wrap: anywhere; margin: 0 0 14px; }
+.warning { background: #fff5db; border: 1px solid #ecd28b; border-radius: 8px; padding: 8px 10px; margin: 0 0 12px; font-size: 13px; }
+.actions { display: grid; gap: 8px; margin-top: auto; }
+.saved { font-size: 12.5px; margin: 10px 0 0; text-align: center; }
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .side { border-left: 0; border-top: 1px solid var(--line); max-height: 45vh; }
+}
