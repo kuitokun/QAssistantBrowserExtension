@@ -1,8 +1,12 @@
-# QAssistant
+<p align="center"><img src="assets/icon/icon512.png" width="128" alt="QAssistant icon"></p>
+
+<h1 align="center">QAssistant</h1>
 
 QAssistant is a browser extension for Chrome and Brave that turns screenshots into an editable Word test document. Capture a page, mark it up, add a title and notes, then download a `.docx` with every step.
 
 It runs only in your browser and sends nothing over the internet.
+
+![QAssistant marks up a screenshot of an order page](assets/store/screenshots/screenshot-2-markup.png)
 
 ## What it does
 

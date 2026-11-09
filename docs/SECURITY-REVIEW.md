@@ -1,6 +1,6 @@
 # QAssistant security review
 
-This document is for teams deciding whether to allow QAssistant 1.0.0. It's written by the project and isn't an independent audit. The source code is public so you can verify it.
+This document is for teams deciding whether to allow QAssistant 1.0.1. It's written by the project and isn't an independent audit. The source code is public so you can verify it.
 
 **Summary:** QAssistant is a Manifest V3 extension with no server, accounts, third-party code or site access. Its pages block network connections with a content security policy.
 
@@ -35,7 +35,7 @@ Hidden areas are permanently burned into the stored image when the user clicks *
 
 ## What was tested
 
-Version 1.0.0 was tested in Chromium on Linux. Tests confirmed the installed permissions, blocked network requests from the extension page and service worker, query-string removal, permanent redaction, and the optional permission prompt. It hasn't had third-party penetration testing or testing on managed corporate Windows devices.
+Version 1.0.1 was tested in Chromium on Linux. Tests confirmed the installed permissions, blocked network requests from the extension page and service worker, query-string removal, permanent redaction, and the optional permission prompt. It hasn't had third-party penetration testing or testing on managed corporate Windows devices.
 
 ## Risks to consider
 

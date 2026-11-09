@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 · November 9, 2026
+
+- New icon: a document with QA and a check mark, with a simplified version for small sizes.
+- Chrome Web Store images added in `assets/store`.
+
 ## 1.0.0 · November 8, 2026
 
 First release.

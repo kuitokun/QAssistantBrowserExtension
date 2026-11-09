@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path d="M30 16 H84 L102 34 V108 a4 4 0 0 1 -4 4 H30 a4 4 0 0 1 -4 -4 V20 a4 4 0 0 1 4 -4 Z" fill="#ffffff" stroke="#1d4ed8" stroke-width="5" stroke-linejoin="round"/>
+ <path d="M84 16 V30 a4 4 0 0 0 4 4 H102" fill="#dbe7ff" stroke="#1d4ed8" stroke-width="5" stroke-linejoin="round"/>
+  <text x="62" y="58" text-anchor="middle" font-family="Inter Display" font-weight="900" font-size="34" letter-spacing="-1.5" fill="#1d4ed8">QA</text>
+  <rect x="38" y="68" width="48" height="5" rx="2.5" fill="#b9c6d8"/><rect x="38" y="79" width="34" height="5" rx="2.5" fill="#b9c6d8"/>
+  <circle cx="94" cy="96" r="18" fill="#16a34a" stroke="#ffffff" stroke-width="4"/><path d="M85.5 96.5 l6 6 l11 -12" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
