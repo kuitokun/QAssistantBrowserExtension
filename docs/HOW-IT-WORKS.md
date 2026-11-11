@@ -62,7 +62,9 @@ By screen usually fits two parts on each Word page. The last part lines up with 
 
 ## Apps and other windows
 
-- **Salesforce, Outlook on the web and other apps:** They scroll inside a panel. **Capture full page** expands the largest scrolling area and shows its header and bottom bar only once. If it expands the wrong area, use **Capture visible area**.
+- **Pop-up windows:** If a pop-up is open, such as a Salesforce **New** record window, **Capture full page** scrolls the pop-up, not the page behind it. The image shows the whole screen with the pop-up stretched to show all its content, including its title and buttons.
+- **Salesforce, Outlook on the web and other apps:** They scroll inside a panel. **Capture full page** expands the largest scrolling area, shows its header and bottom bar only once, and keeps the rest of the page around it.
+- **Choosing the area:** To scroll a different area, such as a related list or side panel, tick **Scroll the area under the mouse** in the menu. Point at the area and use **Alt+Shift+F**, or set a delay and move the mouse there during the countdown. If the mouse isn't over a scrolling area, QAssistant chooses as usual.
 - **Outlook desktop and other programs:** Set a delay, click **Capture entire screen**, and switch to the program before the countdown ends. Only an entire-screen capture can see other programs, and shortcuts only work while the browser is in front. The step shows the address of the browser tab you started from, which you can hide by unticking **Show page address and time**.
 
 ## Editor tools

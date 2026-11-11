@@ -1,6 +1,6 @@
 # QAssistant security review
 
-This document is for teams deciding whether to allow QAssistant 1.0.1. It's written by the project and isn't an independent audit. The source code is public so you can verify it.
+This document is for teams deciding whether to allow QAssistant 1.0.2. It's written by the project and isn't an independent audit. The source code is public so you can verify it.
 
 **Summary:** QAssistant is a Manifest V3 extension with no server, accounts, third-party code or site access. Its pages block network connections with a content security policy.
 
@@ -29,13 +29,13 @@ Hidden areas are permanently burned into the stored image when the user clicks *
 
 - **Network:** The extension pages use `default-src 'none'`, and `connect-src` is limited to the extension itself and local `blob:` and `data:` URLs.
 - **Code:** There's no remote code, `eval`, inline script or third-party dependency.
-- **Page changes:** During a full-page capture, QAssistant temporarily scrolls the page and hides fixed bars and floating boxes, then restores them. It never changes page data or submits anything.
+- **Page changes:** During a full-page capture, QAssistant temporarily scrolls the page and hides fixed bars and floating boxes, then restores them. If a pop-up window is open, it scrolls the pop-up instead of the page behind it. It never changes page data or submits anything.
 - **Screen capture:** Screen sharing needs the optional permission, the browser's picker and a visible sharing indicator. One frame is taken per capture. Sharing ends when the user stops it, closes its window, or after 10 minutes without a capture.
 - **Automated check:** `scripts/check-security.js` fails if permissions, network code or the content security policy change.
 
 ## What was tested
 
-Version 1.0.1 was tested in Chromium on Linux. Tests confirmed the installed permissions, blocked network requests from the extension page and service worker, query-string removal, permanent redaction, and the optional permission prompt. It hasn't had third-party penetration testing or testing on managed corporate Windows devices.
+Version 1.0.2 was tested in Chromium on Linux. Tests confirmed the installed permissions, blocked network requests from the extension page and service worker, query-string removal, permanent redaction, and the optional permission prompt. It hasn't had third-party penetration testing or testing on managed corporate Windows devices.
 
 ## Risks to consider
 

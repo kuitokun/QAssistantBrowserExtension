@@ -101,7 +101,7 @@ async function captureVisible(tab) {
 
 // ---- These functions run inside the page being captured. ----
 
-function pagePrepare() {
+function pagePrepare(underMouse) {
   const state = { hidden: new Map() };
   window.__qassistant = state;
 
@@ -114,23 +114,83 @@ function pagePrepare() {
   state.style = style;
 
   const root = document.scrollingElement || document.documentElement;
-  let scroller = root;
-  if (root.scrollHeight <= window.innerHeight + 2) {
+  const visibleArea = (el) => {
+    const r = el.getBoundingClientRect();
+    const w = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0);
+    const h = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+    return w > 0 && h > 0 ? w * h : 0;
+  };
+  const scrolls = (el) => {
+    if (el.scrollHeight <= el.clientHeight + 2 || el.clientHeight < 60) return false;
+    const overflow = getComputedStyle(el).overflowY;
+    return overflow === 'auto' || overflow === 'scroll' || overflow === 'overlay';
+  };
+  // Every element, including those inside open shadow roots (used by apps such as Salesforce).
+  const everything = (start) => {
+    const out = [];
+    const walk = (node) => {
+      for (const el of node.querySelectorAll('*')) {
+        out.push(el);
+        if (el.shadowRoot) walk(el.shadowRoot);
+      }
+    };
+    walk(start);
+    return out;
+  };
+  const parentOf = (el) => el.parentElement || (el.getRootNode() instanceof ShadowRoot ? el.getRootNode().host : null);
+  const largestScroller = (elements) => {
+    let best = null;
     let bestArea = 0;
-    for (const el of document.querySelectorAll('body *')) {
-      if (el.scrollHeight <= el.clientHeight + 2 || el.clientHeight < 80) continue;
-      const overflow = getComputedStyle(el).overflowY;
-      if (overflow !== 'auto' && overflow !== 'scroll') continue;
-      const r = el.getBoundingClientRect();
-      const visibleW = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0);
-      const visibleH = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
-      if (visibleW <= 0 || visibleH <= 0) continue;
-      const area = visibleW * visibleH;
+    for (const el of elements) {
+      if (!scrolls(el)) continue;
+      const area = visibleArea(el);
       if (area > bestArea) {
         bestArea = area;
-        scroller = el;
+        best = el;
       }
     }
+    return best;
+  };
+
+  let scroller = null;
+
+  // 1. The area under the mouse, when that option is on.
+  if (underMouse) {
+    let hovered = null;
+    let scope = document;
+    for (let depth = 0; depth < 20; depth++) {
+      const chain = scope.querySelectorAll(':hover');
+      const last = chain[chain.length - 1];
+      if (!last) break;
+      hovered = last;
+      if (!last.shadowRoot) break;
+      scope = last.shadowRoot;
+    }
+    for (let el = hovered; el && el !== document.documentElement && el !== document.body; el = parentOf(el)) {
+      if (scrolls(el)) {
+        scroller = el;
+        break;
+      }
+    }
+  }
+
+  // 2. An open pop-up window, such as a "New record" dialog.
+  if (!scroller) {
+    const dialogs = everything(document).filter((el) => (
+      el.matches('[role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open], .slds-modal')
+      && visibleArea(el) > 0 && getComputedStyle(el).visibility !== 'hidden'
+    ));
+    const dialog = dialogs.sort((a, b) => visibleArea(b) - visibleArea(a))[0];
+    if (dialog) {
+      scroller = (scrolls(dialog) ? dialog : null) || largestScroller(everything(dialog));
+      // A pop-up that doesn't scroll is captured as it is, without scrolling the page behind it.
+      if (!scroller) scroller = dialog;
+    }
+  }
+
+  // 3. The page itself, or else its largest scrolling area.
+  if (!scroller) {
+    scroller = root.scrollHeight > window.innerHeight + 2 ? root : (largestScroller(everything(document)) || root);
   }
   state.scroller = scroller;
   state.isRoot = scroller === root;
@@ -255,7 +315,8 @@ async function assertStillActive(tab) {
 }
 
 async function stitchFullPage(tab) {
-  const prep = await inPage(tab.id, pagePrepare);
+  const { scrollUnderMouse = false } = await chrome.storage.local.get('scrollUnderMouse');
+  const prep = await inPage(tab.id, pagePrepare, scrollUnderMouse);
   const frames = [];
   let truncated = false;
   try {
@@ -303,11 +364,30 @@ async function stitchFullPage(tab) {
   const ctx = canvas.getContext('2d');
   for (const frame of frames) {
     ctx.drawImage(frame.bitmap, sx, sy, width, frameHeight, 0, Math.round(frame.top * scale), width, frameHeight);
-    frame.bitmap.close();
   }
+
+  // For a panel or pop-up, also build the whole tab with that area stretched in place,
+  // so the rest of the page, the pop-up's title and its buttons stay in the image.
+  let whole = null;
+  if (!prep.isRoot) {
+    const first = frames[0].bitmap;
+    const lastFrame = last.bitmap;
+    const fullW = first.width;
+    const fullH = first.height;
+    const extra = height - frameHeight;
+    const bottom = sy + frameHeight;
+    const wc = new OffscreenCanvas(fullW, fullH + extra);
+    const w = wc.getContext('2d');
+    w.drawImage(first, 0, 0, fullW, bottom, 0, 0, fullW, bottom);
+    if (extra > 0) w.drawImage(first, 0, bottom - 1, fullW, 1, 0, bottom, fullW, extra);
+    w.drawImage(lastFrame, 0, bottom, fullW, fullH - bottom, 0, bottom + extra, fullW, fullH - bottom);
+    w.drawImage(canvas, sx, sy);
+    whole = { canvas: wc, headerHeight: sy, footerHeight: fullH - bottom, viewHeight: fullH };
+  }
+  for (const frame of frames) frame.bitmap.close();
   return {
     bitmap: await createImageBitmap(canvas),
-    width, height, scale, sx, sy, frameHeight, truncated,
+    width, height, scale, sx, sy, frameHeight, truncated, whole,
     isRoot: prep.isRoot,
   };
 }
@@ -315,14 +395,26 @@ async function stitchFullPage(tab) {
 async function captureFull(tab) {
   await countdown();
   const shot = await stitchFullPage(tab);
-  const canvas = new OffscreenCanvas(shot.width, shot.height);
-  canvas.getContext('2d').drawImage(shot.bitmap, 0, 0);
+  let canvas;
+  let layout;
+  if (shot.whole) {
+    canvas = shot.whole.canvas;
+    layout = {
+      headerHeight: shot.whole.headerHeight, // the page above the scrolled area
+      footerHeight: shot.whole.footerHeight, // the page below it, such as a pop-up's buttons
+      screenHeight: shot.whole.viewHeight,
+    };
+  } else {
+    canvas = new OffscreenCanvas(shot.width, shot.height);
+    canvas.getContext('2d').drawImage(shot.bitmap, 0, 0);
+    layout = { viewHeight: shot.frameHeight }; // one screen of the page, for splitting by screen
+  }
   shot.bitmap.close();
   const blob = await canvas.convertToBlob({ type: 'image/png' });
-  await saveCapture(tab, blob, shot.width, shot.height, shot.scale, {
+  await saveCapture(tab, blob, canvas.width, canvas.height, shot.scale, {
     truncated: shot.truncated,
     panelOnly: !shot.isRoot,
-    viewHeight: shot.frameHeight, // one screen of the page, for splitting by screen
+    ...layout,
   });
 }
 

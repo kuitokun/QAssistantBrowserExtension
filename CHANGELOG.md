@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 · November 11, 2026
+
+- Full-page captures scroll an open pop-up window, such as a Salesforce **New** record window, instead of the page behind it.
+- New option, **Scroll the area under the mouse**, to choose which panel a full-page capture scrolls.
+- When a panel or pop-up is scrolled, the image shows the whole tab with that area stretched in place, including the pop-up's title and buttons.
+
 ## 1.0.1 · November 9, 2026
 
 - New icon: a document with QA and a check mark, with a simplified version for small sizes.

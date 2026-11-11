@@ -85,6 +85,7 @@ $('includeDesktop').addEventListener('change', async (event) => {
   }
   await chrome.storage.local.set({ includeDesktop: event.target.checked });
 });
+$('scrollUnderMouse').addEventListener('change', (event) => chrome.storage.local.set({ scrollUnderMouse: event.target.checked }));
 $('delay').addEventListener('change', (event) => chrome.storage.local.set({ captureDelay: Number(event.target.value) }));
 $('stopShare').addEventListener('click', async () => {
   await chrome.runtime.sendMessage({ type: 'screen-stop' });
@@ -94,8 +95,9 @@ $('open').addEventListener('click', () => chrome.tabs.create({ url: 'document.ht
 $('download').addEventListener('click', () => chrome.tabs.create({ url: 'document.html' }));
 $('shortcuts').addEventListener('click', () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }));
 
-chrome.storage.local.get(['includeDesktop', 'captureDelay']).then(({ includeDesktop = false, captureDelay = 0 }) => {
+chrome.storage.local.get(['includeDesktop', 'captureDelay', 'scrollUnderMouse']).then(({ includeDesktop = false, captureDelay = 0, scrollUnderMouse = false }) => {
   $('includeDesktop').checked = includeDesktop;
+  $('scrollUnderMouse').checked = scrollUnderMouse;
   $('delay').value = String(captureDelay);
 });
 showShortcuts();
