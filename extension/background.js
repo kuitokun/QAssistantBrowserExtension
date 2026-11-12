@@ -106,10 +106,7 @@ function pagePrepare(underMouse) {
   window.__qassistant = state;
 
   const style = document.createElement('style');
-  style.textContent = `
-    html, body, * { scroll-behavior: auto !important; }
-    html, body { scrollbar-width: none !important; }
-    html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; }`;
+  style.textContent = 'html, body, * { scroll-behavior: auto !important; }';
   document.documentElement.appendChild(style);
   state.style = style;
 
@@ -194,6 +191,13 @@ function pagePrepare(underMouse) {
   }
   state.scroller = scroller;
   state.isRoot = scroller === root;
+  // Hide the page's own scrollbar only when the page itself scrolls. Otherwise the
+  // page would get wider and move sideways behind a pop-up or panel.
+  if (state.isRoot) {
+    style.textContent += `
+      html, body { scrollbar-width: none !important; }
+      html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; }`;
+  }
   if (!state.isRoot) {
     state.scrollbarWidth = scroller.style.getPropertyValue('scrollbar-width');
     scroller.style.setProperty('scrollbar-width', 'none', 'important');
@@ -234,7 +238,25 @@ function pagePrepare(underMouse) {
       scroller.scrollTop = start;
     }
   }
-  return { box, isRoot: state.isRoot, viewportWidth: window.innerWidth };
+  // Where the scrolled area's own box ends, including what follows it in the same card,
+  // such as a pop-up's Cancel and Save buttons. Those move down with the area.
+  let end = 0;
+  if (!state.isRoot) {
+    const area = scroller.getBoundingClientRect();
+    end = area.bottom;
+    let node = scroller;
+    for (let depth = 0; depth < 6 && node && node !== document.body; depth++) {
+      for (let sib = node.nextElementSibling; sib; sib = sib.nextElementSibling) {
+        const r = sib.getBoundingClientRect();
+        if (r.height > 0 && r.right > area.left && r.left < area.right) end = Math.max(end, r.bottom);
+      }
+      const parent = parentOf(node);
+      if (!parent || parent.getBoundingClientRect().width > area.width * 1.5) break;
+      node = parent;
+    }
+    end = Math.min(end, window.innerHeight);
+  }
+  return { box, end, isRoot: state.isRoot, viewportWidth: window.innerWidth };
 }
 
 // Hides fixed and stuck elements so a site header or footer appears only once.
@@ -378,14 +400,16 @@ async function stitchFullPage(tab) {
     const bottom = sy + frameHeight;
     const wc = new OffscreenCanvas(fullW, fullH + extra);
     const w = wc.getContext('2d');
-    composeStretched(w, first, lastFrame, { left: sx, right: sx + width, top: sy, bottom }, extra);
+    composeStretched(w, first, lastFrame, { left: sx, right: sx + width, top: sy, bottom, end: Math.round(prep.end * scale), floor: fullH }, extra);
     w.drawImage(canvas, sx, sy);
     whole = { canvas: wc, headerHeight: sy, footerHeight: fullH - bottom, viewHeight: fullH };
   }
+  const viewHeightPx = frames[0].bitmap.height;
   for (const frame of frames) frame.bitmap.close();
   return {
     bitmap: await createImageBitmap(canvas),
     width, height, scale, sx, sy, frameHeight, truncated, whole,
+    end: Math.round(prep.end * scale), viewHeight: viewHeightPx,
     isRoot: prep.isRoot,
   };
 }
@@ -555,41 +579,43 @@ function locateView(desktop, view, estimate) {
   return best;
 }
 
-// Makes room for an area that grew taller (a panel or pop-up) while keeping the page
-// around it intact. The page beside it is split at the empty line closest to the
-// bottom of that area, just above or below it, so the rest of the page stays where it
-// was. That plain line fills the new space, so no field or box is made taller.
+// Makes room for an area that grew taller (a panel or pop-up). The page behind it stays
+// exactly as it was on screen, down to the bottom of the browser's page area (floor).
+// The extra space is added there, at the closest line that crosses nothing, so no field
+// is stretched. The area's own box, such as a pop-up's buttons, moves down with it.
 function composeStretched(ctx, upper, lower, box, extra) {
   const { left, right, top, bottom } = box;
   const width = upper.width;
   const height = upper.height;
+  const end = Math.min(height, Math.max(bottom, box.end || bottom));
+  const floor = Math.min(height, Math.max(end, box.floor || height));
   const sides = [[0, left], [right, width]].filter(([from, to]) => to > from);
-  const middle = [[left, right]];
-  const source = (row) => (row < bottom ? upper : lower);
 
-  // Copies rows [from, to) of the original, in the given columns, moved down by shift.
-  const copy = (from, to, shift, columns) => {
-    for (const [x0, x1] of columns) {
-      const ranges = [[from, Math.min(to, bottom), upper], [Math.max(from, bottom), to, lower]];
-      for (const [r0, r1, img] of ranges) {
-        if (r1 > r0) ctx.drawImage(img, x0, r0, x1 - x0, r1 - r0, x0, r0 + shift, x1 - x0, r1 - r0);
-      }
+  // Copies rows [from, to) in columns [x0, x1), moved down by shift. Rows above the area's
+  // bottom come from the first screenshot, the rest from the last one.
+  const copy = (from, to, shift, x0, x1) => {
+    for (const [r0, r1, img] of [[from, Math.min(to, bottom), upper], [Math.max(from, bottom), to, lower]]) {
+      if (r1 > r0 && x1 > x0) ctx.drawImage(img, x0, r0, x1 - x0, r1 - r0, x0, r0 + shift, x1 - x0, r1 - r0);
     }
   };
+  if (extra <= 0) {
+    copy(0, height, 0, 0, width);
+    return;
+  }
 
-  let split = bottom;
-  if (extra > 0 && sides.length) {
-    const limit = Math.min(height - 1, bottom + Math.round((height - bottom) * 0.6));
+  let split = sides.length ? floor - 1 : end;
+  if (sides.length && floor - 1 > top + 1) {
     const from = top + 1;
-    const rows = limit - from;
-    const probe = new OffscreenCanvas(width, Math.max(1, rows));
+    const rows = floor - from;
+    const probe = new OffscreenCanvas(width, rows);
     const pctx = probe.getContext('2d', { willReadFrequently: true });
-    {
-      const upTo = Math.min(bottom, limit);
-      if (upTo > from) pctx.drawImage(upper, 0, from, width, upTo - from, 0, 0, width, upTo - from);
-      if (limit > bottom) pctx.drawImage(lower, 0, Math.max(bottom, from), width, limit - Math.max(bottom, from), 0, Math.max(bottom, from) - from, width, limit - Math.max(bottom, from));
+    const upTo = Math.min(bottom, floor);
+    if (upTo > from) pctx.drawImage(upper, 0, from, width, upTo - from, 0, 0, width, upTo - from);
+    if (floor > Math.max(bottom, from)) {
+      const start = Math.max(bottom, from);
+      pctx.drawImage(lower, 0, start, width, floor - start, 0, start - from, width, floor - start);
     }
-    const { data } = pctx.getImageData(0, 0, width, Math.max(1, rows));
+    const { data } = pctx.getImageData(0, 0, width, rows);
     const busy = (row) => {
       let changes = 0;
       const offset = row * width * 4;
@@ -602,29 +628,24 @@ function composeStretched(ctx, upper, lower, box, extra) {
       return changes;
     };
     let best = null;
-    for (let row = 0; row < rows; row++) {
+    for (let row = rows - 1; row >= 0; row--) {
       const score = busy(row);
-      const distance = Math.abs(from + row - bottom);
-      if (!best || score < best.score || (score === best.score && distance < best.distance)) {
-        best = { score, distance, row: from + row };
-      }
+      if (!best || score < best.score) best = { score, row: from + row };
+      if (score === 0) break; // the lowest line that crosses nothing
     }
-    if (best) split = best.row;
+    split = best.row;
   }
 
-  // The scrolled area's columns: the page above it, then everything below it moved down.
-  copy(0, bottom, 0, middle);
-  copy(bottom, height, extra, middle);
-  // Beside it: the page as it was down to the split line, the plain line, then the rest moved down.
-  copy(0, split, 0, sides);
-  if (extra > 0 && sides.length) {
-    const strip = new OffscreenCanvas(width, 1);
-    strip.getContext('2d').drawImage(source(split), 0, split, width, 1, 0, 0, width, 1);
-    ctx.imageSmoothingEnabled = false;
-    for (const [x0, x1] of sides) ctx.drawImage(strip, x0, 0, x1 - x0, 1, x0, split, x1 - x0, extra);
-    ctx.imageSmoothingEnabled = true;
-  }
-  copy(split, height, extra, sides);
+  // The page behind, fixed down to the split line, then a plain band, then the rest.
+  copy(0, split, 0, 0, width);
+  const strip = new OffscreenCanvas(width, 1);
+  strip.getContext('2d').drawImage(split < bottom ? upper : lower, 0, split, width, 1, 0, 0, width, 1);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(strip, 0, 0, width, 1, 0, split, width, extra);
+  ctx.imageSmoothingEnabled = true;
+  copy(split, height, extra, 0, width);
+  // The area's own box below the scrolled part (a pop-up's buttons) moves down with it.
+  copy(bottom, end, extra, left, right);
 }
 
 function composeDesktopPage(desktop, shot, viewAt) {
@@ -634,7 +655,9 @@ function composeDesktopPage(desktop, shot, viewAt) {
   const extra = shot.bitmap.height - shot.frameHeight;
   const canvas = new OffscreenCanvas(desktop.width, desktop.height + extra);
   const ctx = canvas.getContext('2d');
-  composeStretched(ctx, desktop, desktop, { left, right: left + shot.bitmap.width, top, bottom }, extra);
+  const end = shot.isRoot ? bottom : viewAt.y + shot.end;
+  const floor = viewAt.y + shot.viewHeight; // the bottom of the browser's page area
+  composeStretched(ctx, desktop, desktop, { left, right: left + shot.bitmap.width, top, bottom, end, floor }, extra);
   ctx.drawImage(shot.bitmap, left, top);
   return { canvas, headerHeight: top, footerHeight: desktop.height - bottom };
 }
