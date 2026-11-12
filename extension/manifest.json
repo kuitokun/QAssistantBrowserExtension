@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "QAssistant",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Capture screenshots, annotate them, add titles and notes, and download everything as an editable Word document.",
   "minimum_chrome_version": "120",
   "permissions": [

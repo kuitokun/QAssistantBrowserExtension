@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 · November 11, 2026
+
+- Fields and boxes beside a stretched pop-up or panel no longer look taller than they are. The page beside it is split at an empty line instead of being stretched.
+
 ## 1.0.2 · November 11, 2026
 
 - Full-page captures scroll an open pop-up window, such as a Salesforce **New** record window, instead of the page behind it.

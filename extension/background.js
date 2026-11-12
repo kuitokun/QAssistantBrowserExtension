@@ -378,9 +378,7 @@ async function stitchFullPage(tab) {
     const bottom = sy + frameHeight;
     const wc = new OffscreenCanvas(fullW, fullH + extra);
     const w = wc.getContext('2d');
-    w.drawImage(first, 0, 0, fullW, bottom, 0, 0, fullW, bottom);
-    if (extra > 0) w.drawImage(first, 0, bottom - 1, fullW, 1, 0, bottom, fullW, extra);
-    w.drawImage(lastFrame, 0, bottom, fullW, fullH - bottom, 0, bottom + extra, fullW, fullH - bottom);
+    composeStretched(w, first, lastFrame, { left: sx, right: sx + width, top: sy, bottom }, extra);
     w.drawImage(canvas, sx, sy);
     whole = { canvas: wc, headerHeight: sy, footerHeight: fullH - bottom, viewHeight: fullH };
   }
@@ -557,6 +555,54 @@ function locateView(desktop, view, estimate) {
   return best;
 }
 
+// Makes room for an area that grew taller (a panel or pop-up) while keeping the page
+// around it intact: the page beside it is split at an empty line, such as the gap
+// between two fields, and that plain line fills the new space. Nothing is stretched or cut.
+function composeStretched(ctx, upper, lower, box, extra) {
+  const { left, right, top, bottom } = box;
+  const width = upper.width;
+  const height = upper.height;
+  let split = bottom - 1;
+  if (extra > 0 && (left > 0 || right < width) && bottom - top > 2) {
+    const probe = new OffscreenCanvas(width, bottom - top);
+    const pctx = probe.getContext('2d', { willReadFrequently: true });
+    pctx.drawImage(upper, 0, top, width, bottom - top, 0, 0, width, bottom - top);
+    const { data } = pctx.getImageData(0, 0, width, bottom - top);
+    // How many colour changes a line has beside the area: 0 means it crosses nothing.
+    const busy = (row) => {
+      let changes = 0;
+      const offset = row * width * 4;
+      for (const [from, to] of [[0, left], [right, width]]) {
+        for (let x = from + 1; x < to; x++) {
+          const i = offset + x * 4;
+          if (Math.abs(data[i] - data[i - 4]) + Math.abs(data[i + 1] - data[i - 3]) + Math.abs(data[i + 2] - data[i - 2]) > 3) changes++;
+        }
+      }
+      return changes;
+    };
+    let best = Infinity;
+    for (let row = bottom - top - 1; row >= 1; row--) {
+      const score = busy(row);
+      if (score < best) {
+        best = score;
+        split = top + row;
+        if (score === 0) break; // the lowest line that crosses nothing
+      }
+    }
+  }
+  ctx.drawImage(upper, 0, 0, width, split, 0, 0, width, split);
+  if (extra > 0) {
+    // Copy the line on its own first, so stretching it can't blend in the line below.
+    const strip = new OffscreenCanvas(width, 1);
+    strip.getContext('2d').drawImage(upper, 0, split, width, 1, 0, 0, width, 1);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(strip, 0, 0, width, 1, 0, split, width, extra);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(upper, 0, split, width, bottom - split, 0, split + extra, width, bottom - split);
+  }
+  ctx.drawImage(lower, 0, bottom, width, height - bottom, 0, bottom + extra, width, height - bottom);
+}
+
 function composeDesktopPage(desktop, shot, viewAt) {
   const left = viewAt.x + shot.sx;
   const top = viewAt.y + shot.sy;
@@ -564,9 +610,7 @@ function composeDesktopPage(desktop, shot, viewAt) {
   const extra = shot.bitmap.height - shot.frameHeight;
   const canvas = new OffscreenCanvas(desktop.width, desktop.height + extra);
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(desktop, 0, 0, desktop.width, bottom, 0, 0, desktop.width, bottom);
-  ctx.drawImage(desktop, 0, bottom - 1, desktop.width, 1, 0, bottom, desktop.width, extra); // extends what is beside the page
-  ctx.drawImage(desktop, 0, bottom, desktop.width, desktop.height - bottom, 0, bottom + extra, desktop.width, desktop.height - bottom);
+  composeStretched(ctx, desktop, desktop, { left, right: left + shot.bitmap.width, top, bottom }, extra);
   ctx.drawImage(shot.bitmap, left, top);
   return { canvas, headerHeight: top, footerHeight: desktop.height - bottom };
 }
