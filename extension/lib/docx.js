@@ -102,7 +102,8 @@ async function imagesForStep(step, options, firstPageRoom) {
   const inchesPerPixel = displayW / canvas.width;
   const displayH = canvas.height * inchesPerPixel;
 
-  const screenRows = options.splitLong && options.splitMode === 'screen' ? onScreenRows(step) : 0;
+  // Screenshots taken while a panel or pop-up scrolled are split back into one per screen.
+  const screenRows = options.splitLong && (options.splitMode === 'screen' || step.stackedScreens) ? onScreenRows(step) : 0;
   if (screenRows) return screenParts(canvas, step, options, screenRows, displayW, inchesPerPixel, firstPageRoom);
 
   if (displayH <= firstPageRoom) {

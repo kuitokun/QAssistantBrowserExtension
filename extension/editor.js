@@ -445,7 +445,7 @@ async function init() {
   $('source').textContent = step.url;
 
   const warnings = [];
-  if (step.panelOnly) warnings.push('This page scrolls inside a panel or pop-up, so that area was expanded in place, with the rest of the page around it.');
+  if (step.panelOnly) warnings.push('This page scrolls inside a panel or pop-up, so each scroll position was captured as its own screenshot, one below the other.');
   if (step.desktopSeparate) warnings.push('The page could not be matched to the desktop, so they are shown one above the other.');
   if (step.stoppedEarly) warnings.push('Scrolling stopped early because the view moved too far between frames. Capture the rest separately.');
   if (step.truncated) warnings.push('This page is too long for one image, so the end was cut off. Capture the rest separately.');

@@ -210,53 +210,10 @@ function pagePrepare(underMouse) {
     ? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
     : (({ left, top, width, height }) => ({ left, top, width, height }))(scroller.getBoundingClientRect());
 
-  // In apps that scroll inside a panel (chats, mail), find the bars and boxes that
-  // float over it: they stay put while the panel scrolls. Each is shown only once.
+  // A panel or pop-up is captured as real screenshots while it scrolls, so nothing on
+  // the page is hidden: each screenshot looks exactly like the screen.
   state.overlays = [];
-  if (!state.isRoot) {
-    const b = scroller.getBoundingClientRect();
-    const candidates = [];
-    for (const el of document.querySelectorAll('body *')) {
-      if (el === scroller || el.contains(scroller)) continue;
-      const css = getComputedStyle(el);
-      if (css.position !== 'fixed' && css.position !== 'sticky' && css.position !== 'absolute') continue;
-      const r = el.getBoundingClientRect();
-      if (r.width < 8 || r.height < 8 || r.height > b.height * 0.5) continue;
-      const overlapW = Math.min(r.right, b.right) - Math.max(r.left, b.left);
-      const overlapH = Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top);
-      if (overlapW <= 0 || overlapH <= 0) continue;
-      candidates.push({ el, top: r.top, isBottom: r.top + r.height / 2 > b.top + b.height / 2 });
-    }
-    const start = scroller.scrollTop;
-    const room = scroller.scrollHeight - scroller.clientHeight;
-    const shift = room - start >= 40 ? Math.min(240, room - start) : -Math.min(240, start);
-    if (shift) {
-      scroller.scrollTop = start + shift;
-      const moved = scroller.scrollTop - start;
-      const floating = candidates.filter((c) => Math.abs(c.el.getBoundingClientRect().top - c.top) < 1 && Math.abs(moved) > 20);
-      state.overlays = floating.filter((c) => !floating.some((other) => other !== c && other.el.contains(c.el)));
-      scroller.scrollTop = start;
-    }
-  }
-  // Where the scrolled area's own box ends, including what follows it in the same card,
-  // such as a pop-up's Cancel and Save buttons. Those move down with the area.
-  let end = 0;
-  if (!state.isRoot) {
-    const area = scroller.getBoundingClientRect();
-    end = area.bottom;
-    let node = scroller;
-    for (let depth = 0; depth < 6 && node && node !== document.body; depth++) {
-      for (let sib = node.nextElementSibling; sib; sib = sib.nextElementSibling) {
-        const r = sib.getBoundingClientRect();
-        if (r.height > 0 && r.right > area.left && r.left < area.right) end = Math.max(end, r.bottom);
-      }
-      const parent = parentOf(node);
-      if (!parent || parent.getBoundingClientRect().width > area.width * 1.5) break;
-      node = parent;
-    }
-    end = Math.min(end, window.innerHeight);
-  }
-  return { box, end, isRoot: state.isRoot, viewportWidth: window.innerWidth };
+  return { box, isRoot: state.isRoot, viewportWidth: window.innerWidth };
 }
 
 // Hides fixed and stuck elements so a site header or footer appears only once.
@@ -358,7 +315,10 @@ async function stitchFullPage(tab) {
       await chrome.action.setBadgeText({ text: `${index}…` });
 
       const scale = bitmap.width / prep.viewportWidth;
-      if ((top + prep.box.height) * scale >= MAX_HEIGHT_PX) {
+      const tooTall = prep.isRoot
+        ? (top + prep.box.height) * scale >= MAX_HEIGHT_PX
+        : (frames.length + 1) * bitmap.height > MAX_HEIGHT_PX;
+      if (tooTall) {
         truncated = top + prep.box.height < measured.total;
         break;
       }
@@ -388,30 +348,24 @@ async function stitchFullPage(tab) {
     ctx.drawImage(frame.bitmap, sx, sy, width, frameHeight, 0, Math.round(frame.top * scale), width, frameHeight);
   }
 
-  // For a panel or pop-up, also build the whole tab with that area stretched in place,
-  // so the rest of the page, the pop-up's title and its buttons stay in the image.
-  let whole = null;
-  if (!prep.isRoot) {
-    const first = frames[0].bitmap;
-    const lastFrame = last.bitmap;
-    const fullW = first.width;
-    const fullH = first.height;
-    const extra = height - frameHeight;
-    const bottom = sy + frameHeight;
-    const wc = new OffscreenCanvas(fullW, fullH + extra);
-    const w = wc.getContext('2d');
-    composeStretched(w, first, lastFrame, { left: sx, right: sx + width, top: sy, bottom, end: Math.round(prep.end * scale), floor: fullH }, extra);
-    w.drawImage(canvas, sx, sy);
-    whole = { canvas: wc, headerHeight: sy, footerHeight: fullH - bottom, viewHeight: fullH };
-  }
-  const viewHeightPx = frames[0].bitmap.height;
-  for (const frame of frames) frame.bitmap.close();
+  // For a panel or pop-up: keep every screenshot as it is, one per scroll position.
+  const screens = prep.isRoot ? null : frames.map((frame) => frame.bitmap);
+  if (prep.isRoot) for (const frame of frames) frame.bitmap.close();
   return {
     bitmap: await createImageBitmap(canvas),
-    width, height, scale, sx, sy, frameHeight, truncated, whole,
-    end: Math.round(prep.end * scale), viewHeight: viewHeightPx,
+    width, height, scale, sx, sy, frameHeight, truncated, screens,
     isRoot: prep.isRoot,
   };
+}
+
+// Puts screenshots one below the other, each exactly as it was on screen.
+function stackScreens(images) {
+  const width = images[0].width;
+  const height = images[0].height;
+  const canvas = new OffscreenCanvas(width, height * images.length);
+  const ctx = canvas.getContext('2d');
+  images.forEach((image, i) => ctx.drawImage(image, 0, i * height));
+  return canvas;
 }
 
 async function captureFull(tab) {
@@ -419,13 +373,10 @@ async function captureFull(tab) {
   const shot = await stitchFullPage(tab);
   let canvas;
   let layout;
-  if (shot.whole) {
-    canvas = shot.whole.canvas;
-    layout = {
-      headerHeight: shot.whole.headerHeight, // the page above the scrolled area
-      footerHeight: shot.whole.footerHeight, // the page below it, such as a pop-up's buttons
-      screenHeight: shot.whole.viewHeight,
-    };
+  if (shot.screens) {
+    canvas = stackScreens(shot.screens);
+    for (const screen of shot.screens) screen.close();
+    layout = { stackedScreens: true, screenHeight: canvas.height / shot.screens.length, headerHeight: 0, footerHeight: 0 };
   } else {
     canvas = new OffscreenCanvas(shot.width, shot.height);
     canvas.getContext('2d').drawImage(shot.bitmap, 0, 0);
@@ -655,9 +606,7 @@ function composeDesktopPage(desktop, shot, viewAt) {
   const extra = shot.bitmap.height - shot.frameHeight;
   const canvas = new OffscreenCanvas(desktop.width, desktop.height + extra);
   const ctx = canvas.getContext('2d');
-  const end = shot.isRoot ? bottom : viewAt.y + shot.end;
-  const floor = viewAt.y + shot.viewHeight; // the bottom of the browser's page area
-  composeStretched(ctx, desktop, desktop, { left, right: left + shot.bitmap.width, top, bottom, end, floor }, extra);
+  composeStretched(ctx, desktop, desktop, { left, right: left + shot.bitmap.width, top, bottom, end: bottom, floor: bottom }, extra);
   ctx.drawImage(shot.bitmap, left, top);
   return { canvas, headerHeight: top, footerHeight: desktop.height - bottom };
 }
@@ -682,9 +631,34 @@ async function captureFullWithDesktop(tab) {
   view.close();
   await sleep(CAPTURE_GAP_MS);
   const shot = await stitchFullPage(tab);
-  const composed = viewAt ? composeDesktopPage(desktop, shot, viewAt) : { canvas: stackDesktopAbovePage(desktop, shot), headerHeight: 0, footerHeight: 0 };
-  const { canvas, headerHeight, footerHeight } = composed;
-  const screenHeight = viewAt ? desktop.height : 0;
+  let canvas;
+  let layout;
+  if (shot.screens) {
+    // Each scroll position becomes a whole screen: the desktop with that screenshot of the tab in place.
+    const screens = viewAt
+      ? shot.screens.map((frame) => {
+        const screen = new OffscreenCanvas(desktop.width, desktop.height);
+        const sctx = screen.getContext('2d');
+        sctx.drawImage(desktop, 0, 0);
+        sctx.drawImage(frame, viewAt.x, viewAt.y);
+        return screen;
+      })
+      : shot.screens; // the tab couldn't be found on the screen: the tab screenshots alone
+    canvas = stackScreens(screens);
+    for (const frame of shot.screens) frame.close();
+    layout = viewAt
+      ? { stackedScreens: true, screenHeight: desktop.height, headerHeight: 0, footerHeight: 0 }
+      : { stackedScreens: true, screenHeight: canvas.height / screens.length, headerHeight: 0, footerHeight: 0, desktopSeparate: true };
+  } else {
+    const composed = viewAt ? composeDesktopPage(desktop, shot, viewAt) : { canvas: stackDesktopAbovePage(desktop, shot), headerHeight: 0, footerHeight: 0 };
+    canvas = composed.canvas;
+    layout = {
+      desktopSeparate: !viewAt,
+      headerHeight: composed.headerHeight, // the rows above the page: browser bar
+      footerHeight: composed.footerHeight, // the rows below the page: window edge and taskbar
+      screenHeight: viewAt ? desktop.height : 0, // the height of the screen, for splitting by screen
+    };
+  }
   shot.bitmap.close();
   desktop.close();
   const blob = await canvas.convertToBlob({ type: 'image/png' });
@@ -692,10 +666,7 @@ async function captureFullWithDesktop(tab) {
     desktop: true,
     truncated: shot.truncated,
     panelOnly: !shot.isRoot,
-    desktopSeparate: !viewAt,
-    headerHeight, // the rows above the page: browser bar
-    footerHeight, // the rows below the page: window edge and taskbar
-    screenHeight, // the height of the screen, for splitting by screen
+    ...layout,
   });
 }
 

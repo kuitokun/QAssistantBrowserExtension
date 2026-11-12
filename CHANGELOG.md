@@ -2,8 +2,7 @@
 
 ## 1.0.3 · November 11, 2026
 
-- Fields and boxes beside a stretched pop-up or panel no longer look taller than they are. The page beside it is split at an empty line instead of being stretched.
-- The page behind a stretched pop-up or panel stays exactly as it was on screen. Extra space is added near the bottom of the browser, at an empty line, and the pop-up's buttons move down with it.
+- Pop-ups and panels are captured like scrolling by hand: a real screenshot of the whole screen at each scroll position, with the page behind exactly as it is. Without splitting, they appear one below the other; with splitting, each is its own image in Word.
 
 ## 1.0.2 · November 11, 2026
 
