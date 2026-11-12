@@ -556,51 +556,75 @@ function locateView(desktop, view, estimate) {
 }
 
 // Makes room for an area that grew taller (a panel or pop-up) while keeping the page
-// around it intact: the page beside it is split at an empty line, such as the gap
-// between two fields, and that plain line fills the new space. Nothing is stretched or cut.
+// around it intact. The page beside it is split at the empty line closest to the
+// bottom of that area, just above or below it, so the rest of the page stays where it
+// was. That plain line fills the new space, so no field or box is made taller.
 function composeStretched(ctx, upper, lower, box, extra) {
   const { left, right, top, bottom } = box;
   const width = upper.width;
   const height = upper.height;
-  let split = bottom - 1;
-  if (extra > 0 && (left > 0 || right < width) && bottom - top > 2) {
-    const probe = new OffscreenCanvas(width, bottom - top);
+  const sides = [[0, left], [right, width]].filter(([from, to]) => to > from);
+  const middle = [[left, right]];
+  const source = (row) => (row < bottom ? upper : lower);
+
+  // Copies rows [from, to) of the original, in the given columns, moved down by shift.
+  const copy = (from, to, shift, columns) => {
+    for (const [x0, x1] of columns) {
+      const ranges = [[from, Math.min(to, bottom), upper], [Math.max(from, bottom), to, lower]];
+      for (const [r0, r1, img] of ranges) {
+        if (r1 > r0) ctx.drawImage(img, x0, r0, x1 - x0, r1 - r0, x0, r0 + shift, x1 - x0, r1 - r0);
+      }
+    }
+  };
+
+  let split = bottom;
+  if (extra > 0 && sides.length) {
+    const limit = Math.min(height - 1, bottom + Math.round((height - bottom) * 0.6));
+    const from = top + 1;
+    const rows = limit - from;
+    const probe = new OffscreenCanvas(width, Math.max(1, rows));
     const pctx = probe.getContext('2d', { willReadFrequently: true });
-    pctx.drawImage(upper, 0, top, width, bottom - top, 0, 0, width, bottom - top);
-    const { data } = pctx.getImageData(0, 0, width, bottom - top);
-    // How many colour changes a line has beside the area: 0 means it crosses nothing.
+    {
+      const upTo = Math.min(bottom, limit);
+      if (upTo > from) pctx.drawImage(upper, 0, from, width, upTo - from, 0, 0, width, upTo - from);
+      if (limit > bottom) pctx.drawImage(lower, 0, Math.max(bottom, from), width, limit - Math.max(bottom, from), 0, Math.max(bottom, from) - from, width, limit - Math.max(bottom, from));
+    }
+    const { data } = pctx.getImageData(0, 0, width, Math.max(1, rows));
     const busy = (row) => {
       let changes = 0;
       const offset = row * width * 4;
-      for (const [from, to] of [[0, left], [right, width]]) {
-        for (let x = from + 1; x < to; x++) {
+      for (const [x0, x1] of sides) {
+        for (let x = x0 + 1; x < x1; x++) {
           const i = offset + x * 4;
           if (Math.abs(data[i] - data[i - 4]) + Math.abs(data[i + 1] - data[i - 3]) + Math.abs(data[i + 2] - data[i - 2]) > 3) changes++;
         }
       }
       return changes;
     };
-    let best = Infinity;
-    for (let row = bottom - top - 1; row >= 1; row--) {
+    let best = null;
+    for (let row = 0; row < rows; row++) {
       const score = busy(row);
-      if (score < best) {
-        best = score;
-        split = top + row;
-        if (score === 0) break; // the lowest line that crosses nothing
+      const distance = Math.abs(from + row - bottom);
+      if (!best || score < best.score || (score === best.score && distance < best.distance)) {
+        best = { score, distance, row: from + row };
       }
     }
+    if (best) split = best.row;
   }
-  ctx.drawImage(upper, 0, 0, width, split, 0, 0, width, split);
-  if (extra > 0) {
-    // Copy the line on its own first, so stretching it can't blend in the line below.
+
+  // The scrolled area's columns: the page above it, then everything below it moved down.
+  copy(0, bottom, 0, middle);
+  copy(bottom, height, extra, middle);
+  // Beside it: the page as it was down to the split line, the plain line, then the rest moved down.
+  copy(0, split, 0, sides);
+  if (extra > 0 && sides.length) {
     const strip = new OffscreenCanvas(width, 1);
-    strip.getContext('2d').drawImage(upper, 0, split, width, 1, 0, 0, width, 1);
+    strip.getContext('2d').drawImage(source(split), 0, split, width, 1, 0, 0, width, 1);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(strip, 0, 0, width, 1, 0, split, width, extra);
+    for (const [x0, x1] of sides) ctx.drawImage(strip, x0, 0, x1 - x0, 1, x0, split, x1 - x0, extra);
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(upper, 0, split, width, bottom - split, 0, split + extra, width, bottom - split);
   }
-  ctx.drawImage(lower, 0, bottom, width, height - bottom, 0, bottom + extra, width, height - bottom);
+  copy(split, height, extra, sides);
 }
 
 function composeDesktopPage(desktop, shot, viewAt) {

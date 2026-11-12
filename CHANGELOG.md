@@ -3,6 +3,7 @@
 ## 1.0.3 · November 11, 2026
 
 - Fields and boxes beside a stretched pop-up or panel no longer look taller than they are. The page beside it is split at an empty line instead of being stretched.
+- The page behind a stretched pop-up or panel stays in place. Extra space is added just above or below the bottom of the pop-up, at an empty line.
 
 ## 1.0.2 · November 11, 2026
 
