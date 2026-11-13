@@ -3,6 +3,7 @@
 ## 1.0.3 · November 11, 2026
 
 - Pop-ups and panels are captured like scrolling by hand: a real screenshot of the whole screen at each scroll position, with the page behind exactly as it is. Without splitting, they appear one below the other; with splitting, each is its own image in Word.
+- Store images updated for the new menu and document options, plus a new image of pop-ups captured screen by screen.
 
 ## 1.0.2 · November 11, 2026
 
