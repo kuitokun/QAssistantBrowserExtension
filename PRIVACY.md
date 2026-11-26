@@ -6,7 +6,7 @@ QAssistant doesn't collect, sell or share personal data, and it doesn't send any
 
 **What stays on your computer:** the screenshots, titles, notes and marks you create, plus the page address and time of each capture. Page addresses are saved without the part after `?` or `#`. This data stays in your browser's storage for the extension.
 
-**Where it can go:** only where you put it. When you click **Download .docx**, your browser saves the file like any other download, and you decide who receives it.
+**Where it can go:** only where you put it. When you click **Save as** and choose a format, your browser saves the file like any other download, and you decide who receives it.
 
 **How to delete it:** delete a step, click **New document**, or remove the extension.
 

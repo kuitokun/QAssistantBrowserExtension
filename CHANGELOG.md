@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 · November 25, 2026
+
+- **Save as** menu on the document page, in place of **Download .docx**, with three choices: Word document, PDF, or image.
+- **PDF:** the same layout as the Word document, with every step, its notes and full-quality screenshots. It follows the split and browser bar options.
+- **Image (.png):** the screenshot with its markup, when the document has one screenshot.
+- Files are named after the document title.
+
 ## 1.0.3 · November 11, 2026
 
 - Pop-ups and panels are captured like scrolling by hand: a real screenshot of the whole screen at each scroll position, with the page behind exactly as it is. Without splitting, they appear one below the other; with splitting, each is its own image in Word.

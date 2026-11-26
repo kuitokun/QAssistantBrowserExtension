@@ -6,12 +6,12 @@ import { flatten } from './render.js';
 const EMU_PER_INCH = 914400;
 const TWIPS_PER_INCH = 1440;
 const PAGE = { width: 11906, height: 16838, margin: 1080 }; // A4, 0.75" margins
-const CONTENT_W = (PAGE.width - PAGE.margin * 2) / TWIPS_PER_INCH;
-const CONTENT_H = (PAGE.height - PAGE.margin * 2) / TWIPS_PER_INCH;
+export const CONTENT_W = (PAGE.width - PAGE.margin * 2) / TWIPS_PER_INCH;
+export const CONTENT_H = (PAGE.height - PAGE.margin * 2) / TWIPS_PER_INCH;
 const HEADER_ROOM = 0.8; // inches for the title and source line above a picture
 const NOTE_LINE = 0.21; // inches per line of notes
 const NOTE_CHARS_PER_LINE = 95;
-const TITLE_BLOCK = 1.1; // inches used by the document title on the first page
+export const TITLE_BLOCK = 1.1; // inches used by the document title on the first page
 
 function esc(text) {
   return String(text ?? '')
@@ -41,7 +41,7 @@ function picture(image, index, altText) {
 </w:drawing></w:r></w:p>`;
 }
 
-function formatDate(ms) {
+export function formatDate(ms) {
   return new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
@@ -95,7 +95,7 @@ async function toBytes(canvas) {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-async function imagesForStep(step, options, firstPageRoom) {
+export async function imagesForStep(step, options, firstPageRoom) {
   const canvas = await flatten(step);
   const naturalWidth = canvas.width / (step.scale || 1) / 96;
   const displayW = Math.min(CONTENT_W, naturalWidth);
@@ -107,11 +107,11 @@ async function imagesForStep(step, options, firstPageRoom) {
   if (screenRows) return screenParts(canvas, step, options, screenRows, displayW, inchesPerPixel, firstPageRoom);
 
   if (displayH <= firstPageRoom) {
-    return [{ bytes: await toBytes(canvas), displayW, displayH }];
+    return [{ canvas, displayW, displayH }];
   }
   if (!options.splitLong) {
     const shrink = firstPageRoom / displayH;
-    return [{ bytes: await toBytes(canvas), displayW: displayW * shrink, displayH: firstPageRoom }];
+    return [{ canvas, displayW: displayW * shrink, displayH: firstPageRoom }];
   }
 
   // The browser bar above the page and the taskbar below it, repeated on every part when asked.
@@ -133,7 +133,7 @@ async function imagesForStep(step, options, firstPageRoom) {
     if (extraTop) ctx.drawImage(canvas, 0, 0, canvas.width, header, 0, 0, canvas.width, header);
     ctx.drawImage(canvas, 0, top, canvas.width, bottom - top, 0, extraTop, canvas.width, bottom - top);
     if (footer) ctx.drawImage(canvas, 0, contentEnd, canvas.width, footer, 0, extraTop + bottom - top, canvas.width, footer);
-    slices.push({ bytes: await toBytes(slice), displayW, displayH: slice.height * inchesPerPixel });
+    slices.push({ canvas: slice, displayW, displayH: slice.height * inchesPerPixel });
     top = bottom >= contentEnd ? contentEnd : findRestartRow(canvas, top, bottom);
     room = CONTENT_H - 0.25;
   }
@@ -162,7 +162,7 @@ async function screenParts(canvas, step, options, rows, displayW, inchesPerPixel
     return h <= maxH ? { displayW, displayH: h } : { displayW: displayW * (maxH / h), displayH: maxH };
   };
   if (view < 50 || contentEnd - contentStart <= view * 1.02) {
-    return [{ bytes: await toBytes(canvas), ...fit(canvas.height) }];
+    return [{ canvas, ...fit(canvas.height) }];
   }
 
   const tops = [];
@@ -179,12 +179,12 @@ async function screenParts(canvas, step, options, rows, displayW, inchesPerPixel
     if (above) ctx.drawImage(canvas, 0, 0, canvas.width, above, 0, 0, canvas.width, above);
     ctx.drawImage(canvas, 0, t, canvas.width, view, 0, above, canvas.width, view);
     if (below) ctx.drawImage(canvas, 0, contentEnd, canvas.width, below, 0, above + view, canvas.width, below);
-    parts.push({ bytes: await toBytes(slice), ...fit(slice.height) });
+    parts.push({ canvas: slice, ...fit(slice.height) });
   }
   return parts;
 }
 
-function roomOnFirstPage(step, options) {
+export function roomOnFirstPage(step, options) {
   const notes = (step.notes || '').trim();
   const noteLines = notes
     ? notes.split('\n').reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / NOTE_CHARS_PER_LINE)), 0)
@@ -256,15 +256,16 @@ export async function buildDocx(meta, steps, onProgress = () => {}) {
 
     const room = roomOnFirstPage(step, meta) - (i === 0 ? TITLE_BLOCK : 0);
     const images = await imagesForStep(step, meta, room);
-    images.forEach((image, part) => {
+    for (let part = 0; part < images.length; part++) {
+      const image = images[part];
       const number = media.length + 1;
       const rId = `rId${number + 2}`;
       const file = `image${number}.png`;
-      media.push({ name: `word/media/${file}`, data: image.bytes });
+      media.push({ name: `word/media/${file}`, data: await toBytes(image.canvas) });
       rels.push(`<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${file}"/>`);
       const alt = images.length > 1 ? `${heading} (part ${part + 1} of ${images.length})` : heading;
       body.push(picture({ ...image, rId }, number, alt));
-    });
+    }
   }
 
   const section = `<w:sectPr><w:footerReference w:type="default" r:id="rId2"/><w:pgSz w:w="${PAGE.width}" w:h="${PAGE.height}"/><w:pgMar w:top="${PAGE.margin}" w:right="${PAGE.margin}" w:bottom="${PAGE.margin}" w:left="${PAGE.margin}" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr>`;
@@ -281,7 +282,9 @@ export async function buildDocx(meta, steps, onProgress = () => {}) {
   ]);
 }
 
-export function docxFilename(title) {
+export function fileName(title, extension) {
   const safe = title.trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
-  return `${safe || 'Test document'}.docx`;
+  return `${safe || 'Test document'}.${extension}`;
 }
+
+export const docxFilename = (title) => fileName(title, 'docx');

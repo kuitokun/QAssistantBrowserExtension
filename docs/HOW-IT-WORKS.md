@@ -7,9 +7,9 @@ Each capture becomes one step in the same document, and it saves automatically.
 3. Mark up the image, then add a title and notes.
 4. Click **Done, back to page** and repeat on the next page.
 5. Click **Go to download**, name the document, and reorder or edit steps if needed.
-6. Click **Download .docx**. The file goes to your normal downloads location.
+6. Click **Save as** and choose **Word document**, **PDF** or **Image**. The file goes to your normal downloads location.
 
-In Word, titles are headings, notes are normal text and screenshots are normal pictures. **New document** clears the current steps, so download first if you need them.
+In Word, titles are headings, notes are normal text and screenshots are normal pictures. The PDF has the same layout. **Image** saves the screenshot with its markup and is available only when the document has one screenshot. **New document** clears the current steps, so save first if you need them.
 
 ## Captures
 
@@ -49,7 +49,7 @@ One click gives you the same images as scrolling down and taking a screenshot ea
 2. Click **Capture full page**.
 3. On the document page, tick **Split long screenshots** and choose **by screen**.
 4. Leave **Browser bar and taskbar on every part** ticked.
-5. Click **Download .docx**.
+5. Click **Save as** and choose **Word document** or **PDF**.
 
 You only set these options once. Untick **Split long screenshots** to get the whole page as one image instead.
 

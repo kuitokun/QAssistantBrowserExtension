@@ -1,7 +1,8 @@
 import { getMeta, setMeta, listSteps, updateStep, deleteStep, clearSteps, swapOrder } from './lib/db.js';
 import * as platform from './platform.js';
-import { thumbnail } from './lib/render.js';
-import { buildDocx, docxFilename } from './lib/docx.js';
+import { thumbnail, flatten } from './lib/render.js';
+import { buildDocx, docxFilename, fileName } from './lib/docx.js';
+import { buildPdf, pdfFilename } from './lib/pdf.js';
 
 const $ = (id) => document.getElementById(id);
 const stepsEl = $('steps');
@@ -124,23 +125,44 @@ async function render() {
   stepsEl.replaceChildren(...steps.map((step, i) => card(step, i, sources[i])));
 }
 
-async function download() {
+const FORMATS = {
+  docx: { label: 'Word document', build: buildDocx, name: docxFilename },
+  pdf: { label: 'PDF', build: buildPdf, name: pdfFilename },
+  png: {
+    label: 'Image',
+    build: async (_meta, current) => (await flatten(current[0])).convertToBlob({ type: 'image/png' }),
+    name: (title) => fileName(title, 'png'),
+  },
+};
+
+function setMenu(open) {
+  $('saveMenu').hidden = !open;
+  $('download').setAttribute('aria-expanded', String(open));
+  $('save').toggleAttribute('data-open', open);
+  if (open) {
+    const single = steps.length === 1;
+    $('saveImage').disabled = !single;
+    $('imageHint').textContent = single ? 'The screenshot with your markup' : 'Only when the document has one screenshot';
+    $('saveMenu').querySelector('button:not(:disabled)')?.focus();
+  }
+}
+
+async function save(format) {
+  const { label, build, name } = FORMATS[format];
+  setMenu(false);
   const button = $('download');
   button.disabled = true;
   try {
     await flushFields();
     const current = await listSteps();
-    const blob = await buildDocx(meta, current, (done, total) => flash(`Building the document: ${done} of ${total}`, true));
-    const saved = await platform.saveDocx(blob, docxFilename(meta.title));
-    if (saved === false) {
-      flash('Download cancelled');
-      return;
-    }
-    flash('Document downloaded');
+    if (format === 'png' && current.length !== 1) throw new Error('an image can only be saved when the document has one screenshot');
+    const blob = await build(meta, current, (done, total) => flash(`Building the ${label.toLowerCase()}: ${done} of ${total}`, true));
+    const saved = await platform.saveFile(blob, name(meta.title));
+    flash(saved === false ? 'Download cancelled' : `${label} downloaded`);
   } catch (error) {
-    flash(`The document could not be built: ${error.message}`, true);
+    flash(`The ${label.toLowerCase()} could not be built: ${error.message}`, true);
   } finally {
-    button.disabled = false;
+    button.disabled = steps.length === 0;
   }
 }
 
@@ -171,9 +193,29 @@ async function init() {
       await setMeta({ [key]: meta[key] });
     });
   }
-  $('download').addEventListener('click', download);
+  $('download').addEventListener('click', () => setMenu($('saveMenu').hidden));
+  $('saveMenu').addEventListener('click', (event) => {
+    const item = event.target.closest('button[data-format]');
+    if (item && !item.disabled) save(item.dataset.format);
+  });
+  document.addEventListener('click', (event) => {
+    if (!$('save').contains(event.target)) setMenu(false);
+  });
+  $('save').addEventListener('keydown', (event) => {
+    const items = [...$('saveMenu').querySelectorAll('button:not(:disabled)')];
+    const at = items.indexOf(document.activeElement);
+    if (event.key === 'Escape' && !$('saveMenu').hidden) {
+      setMenu(false);
+      $('download').focus();
+    } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && items.length) {
+      event.preventDefault();
+      if ($('saveMenu').hidden) return setMenu(true);
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      items[(at + step + items.length) % items.length].focus();
+    }
+  });
   $('newDoc').addEventListener('click', async () => {
-    if (!confirm('Start a new document? All current screenshots and notes will be removed. Download the .docx first if you need it.')) return;
+    if (!confirm('Start a new document? All current screenshots and notes will be removed. Save it first if you need it.')) return;
     await clearSteps();
     await setMeta({ title: 'Test document' });
     meta = await getMeta();

@@ -13,7 +13,7 @@ export async function closeEditor(step) {
 }
 
 // Saves through the browser's normal download flow, so no permission is needed.
-export async function saveDocx(blob, filename) {
+export async function saveFile(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
